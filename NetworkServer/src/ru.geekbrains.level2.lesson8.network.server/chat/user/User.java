@@ -13,6 +13,18 @@ public class User {
         this.username = username;
     }
 
+    public String getLogin() {
+        return login;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -35,18 +47,6 @@ public class User {
                 ", password='" + password + '\'' +
                 ", username='" + username + '\'' +
                 '}';
-    }
-
-    public String getLogin() {
-        return login;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public String getUsername() {
-        return username;
     }
 }
 

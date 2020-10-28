@@ -14,60 +14,62 @@ import ru.geekbrains.level2.lesson8.network.client.model.Network;
 import java.util.List;
 
 
-public class Client extends Application {
+public class NetworkChatClient extends Application {
 
     public static final List<String> USERS_TEST_DATA = List.of("Oleg", "Alexey", "Peter");
-    private Stage authDialogStage;
+
     private Stage primaryStage;
+    private Stage authDialogStage;
     private Network network;
     private ViewController viewController;
 
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        this.primaryStage=primaryStage;
+        this.primaryStage = primaryStage;
+        network = new Network();
+        if (!network.connect()) {
+            showNetworkError("", "Failed to connect to server");
+            return;
+        }
+
+        openAuthDialog(primaryStage);
+        createChatDialog(primaryStage);
+    }
+
+    private void createChatDialog(Stage primaryStage) throws java.io.IOException {
+        FXMLLoader mainLoader = new FXMLLoader();
+        mainLoader.setLocation(NetworkChatClient.class.getResource("view/view.fxml"));
+
+        Parent root = mainLoader.load();
+
+        primaryStage.setTitle("Messenger");
+        primaryStage.setScene(new Scene(root, 600, 400));
+
+        viewController = mainLoader.getController();
+        viewController.setNetwork(network);
+
+        primaryStage.setOnCloseRequest(event -> network.close());
+    }
+
+    private void openAuthDialog(Stage primaryStage) throws java.io.IOException {
         FXMLLoader authLoader = new FXMLLoader();
 
-        authLoader.setLocation(Client.class.getResource("view/authDialog.fxml"));
+        authLoader.setLocation(NetworkChatClient.class.getResource("view/authDialog.fxml"));
         Parent authDialogPanel = authLoader.load();
         authDialogStage = new Stage();
 
         authDialogStage.setTitle("Аутентификая чата");
         authDialogStage.initModality(Modality.WINDOW_MODAL);
-        this.primaryStage = primaryStage;
-        authDialogStage.initOwner(this.primaryStage);
+        authDialogStage.initOwner(primaryStage);
         Scene scene = new Scene(authDialogPanel);
         authDialogStage.setScene(scene);
         authDialogStage.show();
 
-        network = new Network();
-        if (!network.connect()) {
-            showNetworkError("", "Failed to connect to server");
-        }
-        AuthDialogController controller= authLoader.getController();
-        controller.setNetwork(network);
-        controller.setClient(this);
 
-
-        FXMLLoader loader = new FXMLLoader();
-        loader.setLocation(Client.class.getResource("view/view.fxml"));
-
-        Parent root = loader.load();
-
-        primaryStage.setTitle("Messenger");
-        primaryStage.setScene(new Scene(root, 600, 400));
-
-//        primaryStage.show();
-
-
-        viewController = loader.getController();
-        viewController.setNetwork(network);
-
-//        network.waitMessages(viewController);
-
-        primaryStage.setOnCloseRequest(event -> {
-            network.close();
-        });
+        AuthDialogController authController = authLoader.getController();
+        authController.setNetwork(network);
+        authController.setClientApp(this);
     }
 
     public static void showNetworkError(String errorDetails, String errorTitle) {
@@ -84,9 +86,8 @@ public class Client extends Application {
 
     public void openChat() {
         authDialogStage.close();
-        primaryStage.setTitle(network.getUserName());
         primaryStage.show();
+        primaryStage.setTitle(network.getUsername());
         network.waitMessages(viewController);
-
     }
 }

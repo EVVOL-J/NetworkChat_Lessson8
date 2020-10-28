@@ -4,10 +4,12 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
-import ru.geekbrains.level2.lesson8.network.client.Client;
+import ru.geekbrains.level2.lesson8.network.client.NetworkChatClient;
 import ru.geekbrains.level2.lesson8.network.client.model.Network;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.util.Date;
 
 public class ViewController {
 
@@ -21,14 +23,18 @@ public class ViewController {
     @FXML
     private TextField textField;
     private Network network;
-    private String selectedUsername=null;
 
+    private String selectedRecipient;
 
     @FXML
     public void initialize() {
-        usersList.setItems(FXCollections.observableArrayList(Client.USERS_TEST_DATA));
+        usersList.setItems(FXCollections.observableArrayList(NetworkChatClient.USERS_TEST_DATA));
         sendButton.setOnAction(event -> sendMessage());
         textField.setOnAction(event -> sendMessage());
+
+//        usersList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+//                selectedRecipient = newValue;
+//        });
 
         usersList.setCellFactory(lv -> {
             MultipleSelectionModel<String> selectionModel = usersList.getSelectionModel();
@@ -40,17 +46,16 @@ public class ViewController {
                     int index = cell.getIndex();
                     if (selectionModel.getSelectedIndices().contains(index)) {
                         selectionModel.clearSelection(index);
-                        selectedUsername = null;
+                        selectedRecipient = null;
                     } else {
                         selectionModel.select(index);
-                        selectedUsername = cell.getItem();
+                        selectedRecipient = cell.getItem();
                     }
                     event.consume();
                 }
             });
             return cell ;
         });
-
     }
 
     private void sendMessage() {
@@ -59,13 +64,16 @@ public class ViewController {
         textField.clear();
 
         try {
-            if (selectedUsername==null)
-            {network.getOutputStream().writeUTF(message);}
-            else network.getOutputStream().writeUTF("/w "+selectedUsername+" "+message);
+            if (selectedRecipient != null) {
+                network.sendPrivateMessage(message, selectedRecipient);
+            }
+            else {
+                network.sendMessage(message);
+            }
         } catch (IOException e) {
             e.printStackTrace();
             String errorMessage = "Failed to send message";
-            Client.showNetworkError(e.getMessage(), errorMessage);
+            NetworkChatClient.showNetworkError(e.getMessage(), errorMessage);
         }
     }
 
@@ -74,12 +82,15 @@ public class ViewController {
     }
 
     public void appendMessage(String message) {
+        String timestamp = DateFormat.getInstance().format(new Date());
+        chatHistory.appendText(timestamp);
+        chatHistory.appendText(System.lineSeparator());
         chatHistory.appendText(message);
+        chatHistory.appendText(System.lineSeparator());
         chatHistory.appendText(System.lineSeparator());
     }
 
-
-    public String getSelectedUsername() {
-        return selectedUsername;
+    public void showError(String title, String message) {
+        NetworkChatClient.showNetworkError(message, title);
     }
 }

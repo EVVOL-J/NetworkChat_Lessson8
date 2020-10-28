@@ -1,8 +1,8 @@
 package ru.geekbrains.level2.lesson8.network.server.chat;
 
 import ru.geekbrains.level2.lesson8.network.server.chat.auth.AuthService;
-import ru.geekbrains.level2.lesson8.network.server.chat.auth.BatheAuthService;
-import ru.geekbrains.level2.lesson8.network.server.chat.handler.ClintHandler;
+import ru.geekbrains.level2.lesson8.network.server.chat.auth.BaseAuthService;
+import ru.geekbrains.level2.lesson8.network.server.chat.handler.ClientHandler;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -14,79 +14,80 @@ public class MyServer {
 
 
     private final ServerSocket serverSocket;
-    private final List<ClintHandler> clients=new ArrayList<>();
-    private AuthService authService;
+    private final List<ClientHandler> clients = new ArrayList<>();
+    private final AuthService authService;
+
 
     public MyServer(int port) throws IOException {
         this.serverSocket = new ServerSocket(port);
-        this.authService=new BatheAuthService();
+        this.authService = new BaseAuthService();
     }
 
     public void start() throws IOException {
         System.out.println("Сервер был запущен");
+
         authService.start();
         try {
-            while (true){
-                waitNewClintConnection();
+            while (true) {
+                waitAndProcessNewClientConnection();
             }
         } catch (IOException e) {
             System.err.println("Failed to accept new connection");
             e.printStackTrace();
-        }finally {
+        } finally {
             authService.stop();
             serverSocket.close();
         }
     }
 
-    private void waitNewClintConnection() throws IOException {
+    private void waitAndProcessNewClientConnection() throws IOException {
         System.out.println("Ожидание нового подключения....");
-        Socket clintSocket=serverSocket.accept();
-        System.out.println("Клиент подключен");
-        processClientConnection(clintSocket);
-        return;
+        Socket clientSocket = serverSocket.accept();
+        System.out.println("Клиент подключился");// /auth login password
+        processClientConnection(clientSocket);
     }
 
-    private void processClientConnection(Socket clintSocket) throws IOException {
-        ClintHandler clintHandler=new ClintHandler(this,clintSocket);
-        clintHandler.handle();
+    private void processClientConnection(Socket clientSocket) throws IOException {
+        ClientHandler clientHandler = new ClientHandler(this, clientSocket);
+        clientHandler.handle();
     }
 
     public AuthService getAuthService() {
         return authService;
     }
 
-    public synchronized void broadcastMessage(String message, ClintHandler sender) throws IOException {
-        for(ClintHandler clint:clients){
-            if (clint==sender){
+    public synchronized void broadcastMessage(String message, ClientHandler sender, boolean isServerInfoMsg) throws IOException {
+        for (ClientHandler client : clients) {
+            if (client == sender) {
                 continue;
             }
-            clint.sendMessage(sender.getUsername()+": "+message);
-        }
 
+            client.sendMessage(isServerInfoMsg ? null : sender.getUsername(), message);
+        }
     }
-    public synchronized void subscribe(ClintHandler handler){
+
+    public synchronized void subscribe(ClientHandler handler) {
         clients.add(handler);
     }
-    public synchronized void unSubscribe(ClintHandler handler){
+
+    public synchronized void unsubscribe(ClientHandler handler) {
         clients.remove(handler);
     }
-    public boolean isNicknameAlreadyBusy(String username){
-        for (ClintHandler handler:clients){
-            if (handler.getUsername().equals(username)){
+
+    public synchronized boolean isNicknameAlreadyBusy(String username) {
+        for (ClientHandler client : clients) {
+            if (client.getUsername().equals(username)) {
                 return true;
             }
         }
         return false;
     }
 
-    public synchronized void sendMessageTo(ClintHandler sender, String userWriteName, String message) throws IOException {
-        for (ClintHandler handler:clients){
-            if (handler.getUsername().equals(userWriteName)){
-               handler.sendMessage(sender.getUsername()+": "+message);
-               return;
+    public synchronized void sendPrivateMessage(ClientHandler sender, String recipient, String privateMessage) throws IOException {
+        for (ClientHandler client : clients) {
+            if (client.getUsername().equals(recipient)) {
+                client.sendMessage(sender.getUsername(), privateMessage);
             }
         }
-        sender.sendMessage("Такой пользователь не в сети или не существует");
-
     }
 }
