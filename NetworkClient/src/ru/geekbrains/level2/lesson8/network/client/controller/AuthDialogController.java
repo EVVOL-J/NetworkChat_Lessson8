@@ -16,6 +16,8 @@ public class AuthDialogController {
     private Network network;
     private NetworkChatClient clientApp;
 
+
+
     @FXML
     public void executeAuth(ActionEvent actionEvent) {
         String login = loginField.getText();

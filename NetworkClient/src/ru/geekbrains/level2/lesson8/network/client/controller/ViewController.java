@@ -10,6 +10,7 @@ import ru.geekbrains.level2.lesson8.network.client.model.Network;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.List;
 
 public class ViewController {
 
@@ -92,5 +93,9 @@ public class ViewController {
 
     public void showError(String title, String message) {
         NetworkChatClient.showNetworkError(message, title);
+    }
+
+    public void updateUsersList(List<String> users) {
+        usersList.setItems(FXCollections.observableArrayList(users));
     }
 }

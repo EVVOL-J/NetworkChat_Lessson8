@@ -1,29 +1,24 @@
 package ru.geekbrains.level2.lesson8.network.client.model;
 
 import javafx.application.Platform;
-import ru.geekbrains.level2.lesson8.network.client.controller.ViewController;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import ru.geekbrains.level2.lesson8.network.client.controller.ViewController;
+import ru.geekbrains.level2.lesson8.network.clientserver.Command;
+import ru.geekbrains.level2.lesson8.network.clientserver.commands.*;
+
+import java.io.*;
 import java.net.Socket;
 
 public class Network {
 
-    private static final String AUTH_CMD_PREFIX = "/auth";
-    private static final String AUTHOK_CMD_PREFIX = "/authok";
-    private static final String AUTHERR_CMD_PREFIX = "/autherr";
-    private static final String PRIVATE_MSG_CMD_PREFIX = "/w";
-    private static final String CLIENT_MSG_CMD_PREFIX = "/clientMsg";
-    private static final String SERVER_MSG_CMD_PREFIX = "/serverMsg";
 
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 8189;
 
     private final String host;
     private final int port;
-    private DataInputStream inputStream;
-    private DataOutputStream outputStream;
+    private ObjectInputStream inputStream;
+    private ObjectOutputStream outputStream;
     private Socket socket;
     private String username;
 
@@ -39,8 +34,9 @@ public class Network {
     public boolean connect() {
         try {
             socket = new Socket(host, port);
-            inputStream = new DataInputStream(socket.getInputStream());
-            outputStream = new DataOutputStream(socket.getOutputStream());
+            outputStream = new ObjectOutputStream(socket.getOutputStream());
+            inputStream = new ObjectInputStream(socket.getInputStream());
+
             return true;
         } catch (IOException e) {
             System.err.println("Соединение не было установлено!");
@@ -51,14 +47,26 @@ public class Network {
 
     public String sendAuthCommand(String login, String password) {
         try {
-            outputStream.writeUTF(String.format("%s %s %s", AUTH_CMD_PREFIX, login, password));
-            String response = inputStream.readUTF();
-            if (response.startsWith(AUTHOK_CMD_PREFIX)) {
-                this.username = response.split("\\s+", 2)[1];
-                return null;
-            } else {
-                return response.split("\\s+", 2)[1];
+            Command authCommand=Command.authCommand(login,password);
+            sendCommand(authCommand);
+            Command command=readCommand();
+            if(command==null){
+               return "Failed to read command from server";
             }
+            switch (command.getType()){
+                case AUTH_OK:{
+                    AuthOkCommandData data= (AuthOkCommandData) command.getData();
+                    this.username=data.getUsername();
+                    return null;
+                }
+                case AUTH_ERROR:{
+                    AuthErrorCommandData data= (AuthErrorCommandData) command.getData();
+                    return data.getErrorMessage();
+                }
+                default:
+                    return "Unknown type of command from Server"+ command.getType();
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
             return e.getMessage();
@@ -66,12 +74,16 @@ public class Network {
     }
 
     public void sendMessage(String message) throws IOException {
-        outputStream.writeUTF(message);
+        Command command=Command.publicMessageCommand(username,message);
+        sendCommand(command);
+    }
+    private void sendCommand(Command command) throws IOException {
+        outputStream.writeObject(command);
     }
 
     public void sendPrivateMessage(String message, String recipient) throws IOException {
-        String command = String.format("%s %s %s",PRIVATE_MSG_CMD_PREFIX, recipient, message);
-        sendMessage(command);
+        Command command=Command.privateMessageCommand(recipient,message);
+        sendCommand(command);
     }
 
     public void waitMessages(ViewController viewController) {
@@ -80,26 +92,44 @@ public class Network {
             public void run() {
                 try {
                     while (true) {
-                        String message = inputStream.readUTF();
-                        if (message.startsWith(CLIENT_MSG_CMD_PREFIX)) {
-                            String[] parts = message.split("\\s+", 3);
-                            String sender = parts[1];
-                            String msgBody = parts[2];
-                            Platform.runLater(() -> {
-                                viewController.appendMessage(String.format("%s: %s", sender, msgBody));
-                            });
+                        Command command=readCommand();
+                        if(command==null){
+                            viewController.showError("Server error","Invalid command data");
+                            continue;
                         }
-                        else if (message.startsWith(SERVER_MSG_CMD_PREFIX)) {
-                            String[] parts = message.split("\\s+", 2);
-                            Platform.runLater(() -> {
-                                viewController.appendMessage(parts[1]);
-                            });
+                        switch (command.getType()){
+                            case INFO_MESSAGE:{
+                                MessageInfoCommandData data= (MessageInfoCommandData) command.getData();
+                                String message=data.getMessage();
+                                String sender=data.getSender();
+                                String formattedMessage=(sender!=null) ? String.format("%s: %s", sender, message) : message;
+                                Platform.runLater(() -> {
+                                    viewController.appendMessage(formattedMessage);
+                                });
+                                break;
+                            }
+                            case ERROR:{
+                                ErrorCommandData data= (ErrorCommandData) command.getData();
+                                String errorMessage=data.getErrorMessage();
+                                Platform.runLater(() -> {
+                                    viewController.showError("Server error", errorMessage);
+                                });
+                            break;}
+                            case UPDATE_USER_LIST:{
+                                UpdateUserListCommandData data= (UpdateUserListCommandData) command.getData();
+                                Platform.runLater(()->{
+                                    viewController.updateUsersList(data.getUsers());
+                                });
+                                break;
+
+                            }
+                            default:{
+                                Platform.runLater(() -> {
+                                    viewController.showError("Unknown command from server!", command.getType().toString());
+                                });
+                            }
                         }
-                        else {
-                            Platform.runLater(() -> {
-                                viewController.showError("Unknown command from server!", message);
-                            });
-                        }
+
                     }
                 } catch (IOException e) {
                     System.out.println("Соединение было потеряно!");
@@ -120,5 +150,18 @@ public class Network {
 
     public String getUsername() {
         return username;
+    }
+
+    private Command readCommand() throws IOException {
+        try {
+            Command command = (Command) inputStream.readObject();
+            return command;
+        } catch (ClassNotFoundException e) {
+            String errorMessage = "Unknown type of object from client";
+            System.err.println(errorMessage);
+            e.printStackTrace();
+            return null;
+
+        }
     }
 }
