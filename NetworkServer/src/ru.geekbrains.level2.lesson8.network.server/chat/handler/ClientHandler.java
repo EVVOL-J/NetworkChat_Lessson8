@@ -15,7 +15,7 @@ import java.util.TimerTask;
 public class ClientHandler {
 
 
-    private static final long DELAY_CONNECTION =10000L;
+    private static final long DELAY_CONNECTION =120000L;
     private final MyServer myServer;
     private final Socket clientSocket;
 
