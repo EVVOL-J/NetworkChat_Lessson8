@@ -2,38 +2,31 @@ package ru.geekbrains.level2.lesson8.network.client.controller;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import ru.geekbrains.level2.lesson8.network.client.NetworkChatClient;
 import ru.geekbrains.level2.lesson8.network.client.model.Network;
 
-public class AuthDialogController {
-    private @FXML TextField loginField;
-    private @FXML PasswordField passwordField;
-
-
+public class ChangeNameDialogController {
+    private @FXML
+    TextField newNameField;
+    private @FXML
+    PasswordField passwordField;
     private Network network;
     private NetworkChatClient clientApp;
 
-
     @FXML
-    public void executeAuth(ActionEvent actionEvent) {
-        String login = loginField.getText();
+    public void changeName(ActionEvent actionEvent) {
+        String newName = newNameField.getText();
         String password = passwordField.getText();
-        if (login == null || login.isBlank() || password == null || password.isBlank()) {
-            NetworkChatClient.showNetworkError("Username and password should be not empty!", "Auth error");
+        if (newName == null || newName.isBlank() || password == null || password.isBlank()) {
+            NetworkChatClient.showNetworkError("Username and password should be not empty!", "Name change error");
             return;
         }
 
-        String authError = network.sendAuthCommand(login, password);
-        if (authError == null) {
-            clientApp.openChat();
-        } else {
-            NetworkChatClient.showNetworkError(authError, "Auth error");
-        }
-
-
+        String username = network.getUsername();
+        network.sendCommandChangeName(username, newName, password);
     }
 
     public void setNetwork(Network network) {

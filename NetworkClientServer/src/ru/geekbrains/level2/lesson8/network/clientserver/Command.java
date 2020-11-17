@@ -38,6 +38,7 @@ public class Command implements Serializable {
         command.data = new AuthErrorCommandData(authErrorMessage);
         return command;
     }
+
     public static Command errorCommand(String errorMessage) {
         Command command = new Command();
         command.type = CommandType.ERROR;
@@ -48,7 +49,7 @@ public class Command implements Serializable {
     public static Command messageInfoCommand(String sender, String message) {
         Command command = new Command();
         command.type = CommandType.INFO_MESSAGE;
-        command.data = new MessageInfoCommandData(sender,message );
+        command.data = new MessageInfoCommandData(sender, message);
         return command;
     }
 
@@ -65,12 +66,28 @@ public class Command implements Serializable {
         command.data = new PrivateMessageCommandData(receiver, message);
         return command;
     }
-    public static Command updateUserListCommand(List<String> users){
-        Command command=new Command();
-        command.type=CommandType.UPDATE_USER_LIST;
-        command.data= new UpdateUserListCommandData(users);
+
+    public static Command updateUserListCommand(List<String> users) {
+        Command command = new Command();
+        command.type = CommandType.UPDATE_USER_LIST;
+        command.data = new UpdateUserListCommandData(users);
         return command;
     }
+
+    public static Command changeUserNameCommand(String username, String newUserName, String password) {
+        Command command = new Command();
+        command.type = CommandType.CHANGE_USER_NAME;
+        command.data = new ChangeUserNameCommandData(username, newUserName, password);
+        return command;
+    }
+
+    public static Command changeUserNameOKCommand(String newUsername) {
+        Command command = new Command();
+        command.type = CommandType.CHANGE_USER_NAME_OK;
+        command.data = new ChangeNameOkCommandData(newUsername);
+        return command;
+    }
+
     public static Command endCommand() {
         Command command = new Command();
         command.type = CommandType.END;

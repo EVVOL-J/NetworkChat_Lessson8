@@ -1,9 +1,11 @@
 package ru.geekbrains.level2.lesson8.network.client.controller;
 
 import javafx.collections.FXCollections;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
 import ru.geekbrains.level2.lesson8.network.client.NetworkChatClient;
 import ru.geekbrains.level2.lesson8.network.client.model.Network;
 
@@ -24,8 +26,9 @@ public class ViewController {
     @FXML
     private TextField textField;
     private Network network;
-
+    private NetworkChatClient chatClient;
     private String selectedRecipient;
+
 
     @FXML
     public void initialize() {
@@ -43,7 +46,7 @@ public class ViewController {
             cell.textProperty().bind(cell.itemProperty());
             cell.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
                 usersList.requestFocus();
-                if (! cell.isEmpty()) {
+                if (!cell.isEmpty()) {
                     int index = cell.getIndex();
                     if (selectionModel.getSelectedIndices().contains(index)) {
                         selectionModel.clearSelection(index);
@@ -55,7 +58,7 @@ public class ViewController {
                     event.consume();
                 }
             });
-            return cell ;
+            return cell;
         });
     }
 
@@ -67,8 +70,7 @@ public class ViewController {
         try {
             if (selectedRecipient != null) {
                 network.sendPrivateMessage(message, selectedRecipient);
-            }
-            else {
+            } else {
                 network.sendMessage(message);
             }
         } catch (IOException e) {
@@ -80,6 +82,10 @@ public class ViewController {
 
     public void setNetwork(Network network) {
         this.network = network;
+    }
+
+    public void setClientApp(NetworkChatClient networkChatClient) {
+        this.chatClient = networkChatClient;
     }
 
     public void appendMessage(String message) {
@@ -95,7 +101,21 @@ public class ViewController {
         NetworkChatClient.showNetworkError(message, title);
     }
 
+    public void showInfo(String message, String title) {
+        NetworkChatClient.showNetworkINFO(message, title);
+
+    }
+
     public void updateUsersList(List<String> users) {
         usersList.setItems(FXCollections.observableArrayList(users));
+    }
+
+    public void settingsUsername(ActionEvent actionEvent) throws IOException {
+        chatClient.openChangeNameDialogController();
+//        try {
+//            network.sendCommandChangeName("Oleg","lol","pass1");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 }

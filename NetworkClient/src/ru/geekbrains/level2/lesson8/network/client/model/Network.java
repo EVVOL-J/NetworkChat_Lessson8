@@ -47,24 +47,24 @@ public class Network {
 
     public String sendAuthCommand(String login, String password) {
         try {
-            Command authCommand=Command.authCommand(login,password);
+            Command authCommand = Command.authCommand(login, password);
             sendCommand(authCommand);
-            Command command=readCommand();
-            if(command==null){
-               return "Failed to read command from server";
+            Command command = readCommand();
+            if (command == null) {
+                return "Failed to read command from server";
             }
-            switch (command.getType()){
-                case AUTH_OK:{
-                    AuthOkCommandData data= (AuthOkCommandData) command.getData();
-                    this.username=data.getUsername();
+            switch (command.getType()) {
+                case AUTH_OK: {
+                    AuthOkCommandData data = (AuthOkCommandData) command.getData();
+                    this.username = data.getUsername();
                     return null;
                 }
-                case AUTH_ERROR:{
-                    AuthErrorCommandData data= (AuthErrorCommandData) command.getData();
+                case AUTH_ERROR: {
+                    AuthErrorCommandData data = (AuthErrorCommandData) command.getData();
                     return data.getErrorMessage();
                 }
                 default:
-                    return "Unknown type of command from Server"+ command.getType();
+                    return "Unknown type of command from Server" + command.getType();
             }
 
         } catch (IOException e) {
@@ -74,15 +74,29 @@ public class Network {
     }
 
     public void sendMessage(String message) throws IOException {
-        Command command=Command.publicMessageCommand(username,message);
+        Command command = Command.publicMessageCommand(username, message);
         sendCommand(command);
     }
+
     private void sendCommand(Command command) throws IOException {
         outputStream.writeObject(command);
     }
 
+    public void sendCommandChangeName(String username, String newUsername, String password) {
+        Command changeNameCommand = Command.changeUserNameCommand(username, newUsername, password);
+        try {
+            sendCommand(changeNameCommand);
+//
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Ошибка отправки сообщения");
+        }
+    }
+
     public void sendPrivateMessage(String message, String recipient) throws IOException {
-        Command command=Command.privateMessageCommand(recipient,message);
+        Command command = Command.privateMessageCommand(recipient, message);
         sendCommand(command);
     }
 
@@ -92,38 +106,50 @@ public class Network {
             public void run() {
                 try {
                     while (true) {
-                        Command command=readCommand();
-                        if(command==null){
-                            viewController.showError("Server error","Invalid command data");
+                        Command command = readCommand();
+                        if (command == null) {
+                            viewController.showError("Server error", "Invalid command data");
                             continue;
                         }
-                        switch (command.getType()){
-                            case INFO_MESSAGE:{
-                                MessageInfoCommandData data= (MessageInfoCommandData) command.getData();
-                                String message=data.getMessage();
-                                String sender=data.getSender();
-                                String formattedMessage=(sender!=null) ? String.format("%s: %s", sender, message) : message;
+                        switch (command.getType()) {
+                            case CHANGE_USER_NAME_OK: {
+                                ChangeNameOkCommandData data = (ChangeNameOkCommandData) command.getData();
+                                String username = data.getUsername();
+                                System.out.println("New user name " + username);
+                                Platform.runLater(() -> {
+                                    viewController.showInfo("Имя успешно изменено на " + username, "Change name");
+                                });
+
+
+                                break;
+                            }
+                            case INFO_MESSAGE: {
+                                MessageInfoCommandData data = (MessageInfoCommandData) command.getData();
+                                String message = data.getMessage();
+                                String sender = data.getSender();
+                                String formattedMessage = (sender != null) ? String.format("%s: %s", sender, message) : message;
                                 Platform.runLater(() -> {
                                     viewController.appendMessage(formattedMessage);
                                 });
                                 break;
                             }
-                            case ERROR:{
-                                ErrorCommandData data= (ErrorCommandData) command.getData();
-                                String errorMessage=data.getErrorMessage();
+                            case ERROR: {
+                                ErrorCommandData data = (ErrorCommandData) command.getData();
+                                String errorMessage = data.getErrorMessage();
                                 Platform.runLater(() -> {
                                     viewController.showError("Server error", errorMessage);
                                 });
-                            break;}
-                            case UPDATE_USER_LIST:{
-                                UpdateUserListCommandData data= (UpdateUserListCommandData) command.getData();
-                                Platform.runLater(()->{
+                                break;
+                            }
+                            case UPDATE_USER_LIST: {
+                                UpdateUserListCommandData data = (UpdateUserListCommandData) command.getData();
+                                Platform.runLater(() -> {
                                     viewController.updateUsersList(data.getUsers());
                                 });
                                 break;
 
                             }
-                            default:{
+                            default: {
                                 Platform.runLater(() -> {
                                     viewController.showError("Unknown command from server!", command.getType().toString());
                                 });
