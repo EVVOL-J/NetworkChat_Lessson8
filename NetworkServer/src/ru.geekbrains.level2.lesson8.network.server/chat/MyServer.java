@@ -3,6 +3,7 @@ package ru.geekbrains.level2.lesson8.network.server.chat;
 import ru.geekbrains.level2.lesson8.network.clientserver.Command;
 import ru.geekbrains.level2.lesson8.network.server.chat.auth.AuthService;
 import ru.geekbrains.level2.lesson8.network.server.chat.auth.BaseAuthService;
+import ru.geekbrains.level2.lesson8.network.server.chat.auth.DataBaseAuthService;
 import ru.geekbrains.level2.lesson8.network.server.chat.handler.ClientHandler;
 
 import java.io.IOException;
@@ -17,12 +18,12 @@ public class MyServer {
 
     private final ServerSocket serverSocket;
     private final List<ClientHandler> clients = new ArrayList<>();
-    private final AuthService authService;
+    private final DataBaseAuthService authService;
 
 
     public MyServer(int port) throws IOException {
         this.serverSocket = new ServerSocket(port);
-        this.authService = new BaseAuthService();
+        this.authService = new DataBaseAuthService();
     }
 
     public void start() throws IOException {
@@ -70,23 +71,22 @@ public class MyServer {
     public synchronized void subscribe(ClientHandler handler) throws IOException {
 
         clients.add(handler);
-        List<String> usersNames=getAllUsersNames();
-        broadcastMessage(null,Command.updateUserListCommand(usersNames));
+        List<String> usersNames = getAllUsersNames();
+        broadcastMessage(null, Command.updateUserListCommand(usersNames));
     }
 
     private List<String> getAllUsersNames() {
-        List<String> usernames= new ArrayList<>();
-       for(ClientHandler client:clients)
-       {
-           usernames.add(client.getUsername());
-       }
-       return usernames;
+        List<String> usernames = new ArrayList<>();
+        for (ClientHandler client : clients) {
+            usernames.add(client.getUsername());
+        }
+        return usernames;
     }
 
     public synchronized void unsubscribe(ClientHandler handler) throws IOException {
         clients.remove(handler);
-        List<String> usersNames=getAllUsersNames();
-        broadcastMessage(null,Command.updateUserListCommand(usersNames));
+        List<String> usersNames = getAllUsersNames();
+        broadcastMessage(null, Command.updateUserListCommand(usersNames));
     }
 
     public synchronized boolean isNicknameAlreadyBusy(String username) {
@@ -104,5 +104,15 @@ public class MyServer {
                 client.sendMessage(command);
             }
         }
+    }
+
+    public boolean updateUserList(String newUserName, String password, ClientHandler clientHandler) throws IOException {
+        if (authService.getDataBaseController().changeUserNameByPassword(clientHandler.getUsername(), newUserName, password)) {
+            clientHandler.setUsername(newUserName);
+            List<String> usersNames = getAllUsersNames();
+            sendPrivateMessage(newUserName, Command.changeUserNameOKCommand(newUserName));
+            broadcastMessage(null, Command.updateUserListCommand(usersNames));
+            return true;
+        } else return false;
     }
 }

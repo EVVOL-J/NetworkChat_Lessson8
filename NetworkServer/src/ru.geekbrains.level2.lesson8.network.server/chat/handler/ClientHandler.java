@@ -3,6 +3,7 @@ package ru.geekbrains.level2.lesson8.network.server.chat.handler;
 import ru.geekbrains.level2.lesson8.network.clientserver.Command;
 import ru.geekbrains.level2.lesson8.network.clientserver.CommandType;
 import ru.geekbrains.level2.lesson8.network.clientserver.commands.AuthCommandData;
+import ru.geekbrains.level2.lesson8.network.clientserver.commands.ChangeUserNameCommandData;
 import ru.geekbrains.level2.lesson8.network.clientserver.commands.PrivateMessageCommandData;
 import ru.geekbrains.level2.lesson8.network.clientserver.commands.PublicMessageCommandData;
 import ru.geekbrains.level2.lesson8.network.server.chat.MyServer;
@@ -15,7 +16,7 @@ import java.util.TimerTask;
 public class ClientHandler {
 
 
-    private static final long DELAY_CONNECTION =120000L;
+    private static final long DELAY_CONNECTION = 120000L;
     private final MyServer myServer;
     private final Socket clientSocket;
 
@@ -53,29 +54,48 @@ public class ClientHandler {
         return username;
     }
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     private void readMessages() throws IOException {
         while (true) {
-            Command command=readCommand();
-            if(command==null){
+            Command command = readCommand();
+            if (command == null) {
                 continue;
             }
-            switch (command.getType()){
-                case END: return;
-                case PRIVATE_MESSAGE:{
-                    PrivateMessageCommandData data= (PrivateMessageCommandData) command.getData();
+            switch (command.getType()) {
+                case END:
+                    return;
+                case PRIVATE_MESSAGE: {
+                    PrivateMessageCommandData data = (PrivateMessageCommandData) command.getData();
                     String recipient = data.getReceiver();
                     String privateMessage = data.getMessage();
-                    myServer.sendPrivateMessage(recipient, Command.messageInfoCommand(username,privateMessage));
-                    break;}
-                case PUBLIC_MESSAGE: {
-                    PublicMessageCommandData data = (PublicMessageCommandData) command.getData();
-                    String publicMessage=data.getMessage();
-                    String sender=data.getSender();
-                    myServer.broadcastMessage(this,Command.messageInfoCommand(sender,publicMessage));
+                    myServer.sendPrivateMessage(recipient, Command.messageInfoCommand(username, privateMessage));
                     break;
                 }
+                case PUBLIC_MESSAGE: {
+                    PublicMessageCommandData data = (PublicMessageCommandData) command.getData();
+                    String publicMessage = data.getMessage();
+                    String sender = data.getSender();
+                    myServer.broadcastMessage(this, Command.messageInfoCommand(sender, publicMessage));
+                    break;
+                }
+
+                case CHANGE_USER_NAME: {
+                    ChangeUserNameCommandData data = (ChangeUserNameCommandData) command.getData();
+                    String username = data.getUsername();
+                    String newUserName = data.getNewUserName();
+                    String password = data.getPassword();
+                    if (myServer.updateUserList(newUserName, password, this)) {
+                        myServer.broadcastMessage(null, Command.messageInfoCommand(username, "сменил имя на " + newUserName));
+                    } else sendMessage(Command.errorCommand("Не удалось сменит имя пользователя неверный пароль"));
+
+                    break;
+                }
+
                 default:
-                    System.err.println("Unknown type of command: "+ command.getType());
+                    System.err.println("Unknown type of command: " + command.getType());
 
 
             }
@@ -99,42 +119,42 @@ public class ClientHandler {
 
     private void authentication() throws IOException {
         System.out.println("Сервер был запущен");
-        Timer timer=new Timer();
-        TimerTask timerTask=timerTask();
+        Timer timer = new Timer();
+        TimerTask timerTask = timerTask();
 
-        timer.schedule(timerTask,DELAY_CONNECTION);
+        timer.schedule(timerTask, DELAY_CONNECTION);
 
         while (true) {
             Command command = readCommand();
             if (command == null) {
                 continue;
             }
-            if (command.getType()== CommandType.AUTH) {
-                boolean isSuccessAuth=processAuthCommand(command);
-                if(isSuccessAuth){
+            if (command.getType() == CommandType.AUTH) {
+                boolean isSuccessAuth = processAuthCommand(command);
+                if (isSuccessAuth) {
                     break;
                 }
             } else {
                 sendMessage(Command.authErrorCommand("auth command is required!"));
             }
-            }
+        }
 
     }
 
     private TimerTask timerTask() {
 
-        TimerTask timerTask=new TimerTask() {
+        TimerTask timerTask = new TimerTask() {
             @Override
             public void run() {
-                if (username==null){
-                try {
-                    System.out.println("Время подключения истекло");
-                    sendMessage(Command.authErrorCommand("Время подключения истекло"));
-                    closeConnection();
-                } catch (IOException e) {
-                    System.err.println("Ошибка посылки комманды времени подключения");
-                    e.printStackTrace();
-                }
+                if (username == null) {
+                    try {
+                        System.out.println("Время подключения истекло");
+                        sendMessage(Command.authErrorCommand("Время подключения истекло"));
+                        closeConnection();
+                    } catch (IOException e) {
+                        System.err.println("Ошибка посылки комманды времени подключения");
+                        e.printStackTrace();
+                    }
                 }
             }
         };
@@ -142,8 +162,8 @@ public class ClientHandler {
     }
 
     private boolean processAuthCommand(Command command) throws IOException {
-        AuthCommandData authCommandData= (AuthCommandData) command.getData();
-        String login =authCommandData.getLogin();
+        AuthCommandData authCommandData = (AuthCommandData) command.getData();
+        String login = authCommandData.getLogin();
         String password = authCommandData.getPassword();
         this.username = myServer.getAuthService().getUsernameByLoginAndPassword(login, password);
         if (username != null) {
@@ -152,10 +172,10 @@ public class ClientHandler {
                 return false;
             }
             sendMessage(Command.authOkCommand(username));
-            String message=username+" joined to chat!";
+            String message = username + " joined to chat!";
             myServer.subscribe(this);
-            myServer.broadcastMessage(this,Command.messageInfoCommand(null,message));
-                        return true;
+            myServer.broadcastMessage(this, Command.messageInfoCommand(null, message));
+            return true;
         } else {
             sendMessage(Command.authErrorCommand("Login and/or password are invalid! Please, try again"));
             return false;
@@ -163,14 +183,13 @@ public class ClientHandler {
     }
 
 
-
     private void closeConnection() throws IOException {
-        if(username!=null) myServer.unsubscribe(this);
+        if (username != null) myServer.unsubscribe(this);
         clientSocket.close();
     }
 
 
     public void sendMessage(Command command) throws IOException {
-      out.writeObject(command);
+        out.writeObject(command);
     }
 }
