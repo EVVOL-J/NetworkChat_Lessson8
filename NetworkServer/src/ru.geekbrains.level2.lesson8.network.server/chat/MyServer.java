@@ -2,7 +2,6 @@ package ru.geekbrains.level2.lesson8.network.server.chat;
 
 import ru.geekbrains.level2.lesson8.network.clientserver.Command;
 import ru.geekbrains.level2.lesson8.network.server.chat.auth.AuthService;
-import ru.geekbrains.level2.lesson8.network.server.chat.auth.BaseAuthService;
 import ru.geekbrains.level2.lesson8.network.server.chat.auth.DataBaseAuthService;
 import ru.geekbrains.level2.lesson8.network.server.chat.handler.ClientHandler;
 
@@ -11,6 +10,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class MyServer {
@@ -19,6 +20,7 @@ public class MyServer {
     private final ServerSocket serverSocket;
     private final List<ClientHandler> clients = new ArrayList<>();
     private final DataBaseAuthService authService;
+    private ExecutorService executorService;
 
 
     public MyServer(int port) throws IOException {
@@ -29,17 +31,29 @@ public class MyServer {
     public void start() throws IOException {
 
         authService.start();
-        try {
-            while (true) {
-                waitAndProcessNewClientConnection();
-            }
-        } catch (IOException e) {
-            System.err.println("Failed to accept new connection");
-            e.printStackTrace();
-        } finally {
-            authService.stop();
-            serverSocket.close();
+        executorService= Executors.newSingleThreadExecutor();
+        executorService.submit(() -> {
+            try {
+        while (true) {
+            waitAndProcessNewClientConnection();
         }
+    } catch (IOException e) {
+        System.err.println("Failed to accept new connection");
+        e.printStackTrace();
+    } finally {
+        authService.stop();
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        executorService.shutdown();
+
+
+
     }
 
     private void waitAndProcessNewClientConnection() throws IOException {
