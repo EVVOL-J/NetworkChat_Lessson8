@@ -90,11 +90,15 @@ public class ViewController {
 
     public void appendMessage(String message) {
         String timestamp = DateFormat.getInstance().format(new Date());
-        chatHistory.appendText(timestamp);
-        chatHistory.appendText(System.lineSeparator());
+        String sendMessage=timestamp+"\n"+message+"\n\n";
+        chatHistory.appendText(sendMessage);
+        chatClient.getLogHistory().writeFile(sendMessage);
+    }
+    public void appendMessageWithoutData(String message) {
         chatHistory.appendText(message);
         chatHistory.appendText(System.lineSeparator());
         chatHistory.appendText(System.lineSeparator());
+
     }
 
     public void showError(String title, String message) {

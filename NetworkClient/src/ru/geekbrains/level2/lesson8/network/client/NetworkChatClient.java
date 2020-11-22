@@ -10,8 +10,10 @@ import javafx.stage.Stage;
 import ru.geekbrains.level2.lesson8.network.client.controller.AuthDialogController;
 import ru.geekbrains.level2.lesson8.network.client.controller.ChangeNameDialogController;
 import ru.geekbrains.level2.lesson8.network.client.controller.ViewController;
+import ru.geekbrains.level2.lesson8.network.client.history.LogHistory;
 import ru.geekbrains.level2.lesson8.network.client.model.Network;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
@@ -24,6 +26,8 @@ public class NetworkChatClient extends Application {
     private Stage authDialogStage;
     private Network network;
     private ViewController viewController;
+    private AuthDialogController authController ;
+    private LogHistory logHistory;
 
 
     @Override
@@ -52,7 +56,11 @@ public class NetworkChatClient extends Application {
         viewController.setNetwork(network);
         viewController.setClientApp(this);
 
-        primaryStage.setOnCloseRequest(event -> network.close());
+        primaryStage.setOnCloseRequest(event -> {network.close();
+
+                logHistory.closeFile();
+
+        });
     }
 
     private void openAuthDialog(Stage primaryStage) throws java.io.IOException {
@@ -70,7 +78,8 @@ public class NetworkChatClient extends Application {
         authDialogStage.show();
 
 
-        AuthDialogController authController = authLoader.getController();
+
+        authController = authLoader.getController();
         authController.setNetwork(network);
         authController.setClientApp(this);
     }
@@ -97,6 +106,10 @@ public class NetworkChatClient extends Application {
 
     public void openChat() {
         authDialogStage.close();
+
+            logHistory=new LogHistory("history_"+authController.getLogin()+".txt");
+            viewController.appendMessageWithoutData(logHistory.readLastNLines(10));
+
         primaryStage.show();
         primaryStage.setTitle(network.getUsername());
         network.waitMessages(viewController);
@@ -122,5 +135,7 @@ public class NetworkChatClient extends Application {
 
     }
 
-
+    public LogHistory getLogHistory() {
+        return logHistory;
+    }
 }
