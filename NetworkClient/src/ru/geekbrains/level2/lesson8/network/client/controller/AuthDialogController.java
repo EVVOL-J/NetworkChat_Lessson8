@@ -12,14 +12,14 @@ public class AuthDialogController {
     private @FXML TextField loginField;
     private @FXML PasswordField passwordField;
 
-
+    private String login;
     private Network network;
     private NetworkChatClient clientApp;
 
 
     @FXML
     public void executeAuth(ActionEvent actionEvent) {
-        String login = loginField.getText();
+        login = loginField.getText();
         String password = passwordField.getText();
         if (login == null || login.isBlank() || password == null || password.isBlank()) {
             NetworkChatClient.showNetworkError("Username and password should be not empty!", "Auth error");
@@ -42,5 +42,9 @@ public class AuthDialogController {
 
     public void setClientApp(NetworkChatClient clientApp) {
         this.clientApp = clientApp;
+    }
+
+    public String getLogin() {
+        return login;
     }
 }
