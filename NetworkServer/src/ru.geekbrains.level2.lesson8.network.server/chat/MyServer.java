@@ -1,6 +1,9 @@
 package ru.geekbrains.level2.lesson8.network.server.chat;
 
+
+
 import ru.geekbrains.level2.lesson8.network.clientserver.Command;
+import ru.geekbrains.level2.lesson8.network.server.ServerApp;
 import ru.geekbrains.level2.lesson8.network.server.chat.auth.AuthService;
 import ru.geekbrains.level2.lesson8.network.server.chat.auth.DataBaseAuthService;
 import ru.geekbrains.level2.lesson8.network.server.chat.handler.ClientHandler;
@@ -12,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.*;
 
 
 public class MyServer {
@@ -21,11 +25,16 @@ public class MyServer {
     private final List<ClientHandler> clients = new ArrayList<>();
     private final DataBaseAuthService authService;
     private ExecutorService executorService;
-
+    private static final Logger log= Logger.getLogger(MyServer.class.getName());
+    private Handler h=new FileHandler("log.txt");
 
     public MyServer(int port) throws IOException {
+
         this.serverSocket = new ServerSocket(port);
         this.authService = new DataBaseAuthService();
+        h.setFormatter(new SimpleFormatter());
+        log.addHandler(h);
+
     }
 
     public void start() throws IOException {
@@ -38,14 +47,13 @@ public class MyServer {
             waitAndProcessNewClientConnection();
         }
     } catch (IOException e) {
-        System.err.println("Failed to accept new connection");
-        e.printStackTrace();
+
     } finally {
         authService.stop();
                 try {
                     serverSocket.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.log(Level.SEVERE,"Error close server Socket");
                 }
             }
         });
@@ -57,9 +65,9 @@ public class MyServer {
     }
 
     private void waitAndProcessNewClientConnection() throws IOException {
-        System.out.println("Ожидание нового подключения....");
+        log.log(Level.INFO,"Ожидание нового подключения....");
         Socket clientSocket = serverSocket.accept();
-        System.out.println("Клиент подключился");// /auth login password
+        log.log(Level.INFO,"Клиент подключился");
         processClientConnection(clientSocket);
     }
 
@@ -128,5 +136,9 @@ public class MyServer {
             broadcastMessage(null, Command.updateUserListCommand(usersNames));
             return true;
         } else return false;
+    }
+
+    public static Logger getLOGGER() {
+        return log;
     }
 }
