@@ -3,6 +3,7 @@ package ru.geekbrains.level2.lesson8.network.server;
 import ru.geekbrains.level2.lesson8.network.server.chat.MyServer;
 
 import java.io.IOException;
+import java.util.logging.Level;
 
 public class ServerApp {
     private static final int DEFAULT_PORT = 8189;
@@ -15,9 +16,8 @@ public class ServerApp {
         try {
             new MyServer(port).start();
         } catch (IOException e) {
-            System.err.println("Failed to create MyServer");
-            e.printStackTrace();
-            System.exit(1);
+            MyServer.getLOGGER().log(Level.SEVERE,"Failed to create MyServer");
+            e.printStackTrace();System.exit(1);
         }
     }
 

@@ -12,6 +12,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.logging.Level;
 
 public class ClientHandler {
 
@@ -39,12 +40,13 @@ public class ClientHandler {
                 authentication();
                 readMessages();
             } catch (IOException e) {
-                e.printStackTrace();
+                myServer.getLOGGER().log(Level.SEVERE,"Error in authentication or read messages ");
             } finally {
                 try {
                     closeConnection();
                 } catch (IOException e) {
-                    System.err.println("Failed to close connection!");
+                    myServer.getLOGGER().log(Level.SEVERE,"Failed to close connection!");
+
                 }
             }
         }).start();
@@ -65,8 +67,9 @@ public class ClientHandler {
                 continue;
             }
             switch (command.getType()) {
-                case END:
-                    return;
+                case END:{
+                    myServer.getLOGGER().log(Level.INFO,"COMMAND END");
+                    return;}
                 case PRIVATE_MESSAGE: {
                     PrivateMessageCommandData data = (PrivateMessageCommandData) command.getData();
                     String recipient = data.getReceiver();
@@ -89,13 +92,18 @@ public class ClientHandler {
                     String password = data.getPassword();
                     if (myServer.updateUserList(newUserName, password, this)) {
                         myServer.broadcastMessage(null, Command.messageInfoCommand(username, "сменил имя на " + newUserName));
-                    } else sendMessage(Command.errorCommand("Не удалось сменит имя пользователя неверный пароль"));
+                        myServer.getLOGGER().log(Level.INFO,username + "сменил имя на " + newUserName);
+                    } else {sendMessage(Command.errorCommand("Не удалось сменит имя пользователя неверный пароль"));
+                        myServer.getLOGGER().log(Level.INFO,"Не удалось сменит имя пользователя неверный пароль");
+                    }
 
                     break;
                 }
 
                 default:
-                    System.err.println("Unknown type of command: " + command.getType());
+                {
+                    myServer.getLOGGER().log(Level.SEVERE,"Unknown type of command: " + command.getType());
+                }
 
 
             }
@@ -109,8 +117,8 @@ public class ClientHandler {
             return command;
         } catch (ClassNotFoundException e) {
             String errorMessage = "Unknown type of object from client";
-            System.err.println(errorMessage);
-            e.printStackTrace();
+
+            myServer.getLOGGER().log(Level.SEVERE,errorMessage);
             sendMessage(Command.authErrorCommand(errorMessage));
             return null;
 
@@ -118,7 +126,7 @@ public class ClientHandler {
     }
 
     private void authentication() throws IOException {
-        System.out.println("Сервер был запущен");
+        myServer.getLOGGER().log(Level.INFO,"Сервер запущен...");
         Timer timer = new Timer();
         TimerTask timerTask = timerTask();
 
@@ -132,10 +140,12 @@ public class ClientHandler {
             if (command.getType() == CommandType.AUTH) {
                 boolean isSuccessAuth = processAuthCommand(command);
                 if (isSuccessAuth) {
+                    myServer.getLOGGER().log(Level.INFO,"Ползователь "+username+" успешно присоединился к чату");
                     break;
                 }
             } else {
                 sendMessage(Command.authErrorCommand("auth command is required!"));
+                myServer.getLOGGER().log(Level.INFO,"Ошибка входа пользователя");
             }
         }
 
@@ -148,12 +158,11 @@ public class ClientHandler {
             public void run() {
                 if (username == null) {
                     try {
-                        System.out.println("Время подключения истекло");
+                        myServer.getLOGGER().log(Level.SEVERE,"Время подключения истекло");
                         sendMessage(Command.authErrorCommand("Время подключения истекло"));
                         closeConnection();
                     } catch (IOException e) {
-                        System.err.println("Ошибка посылки комманды времени подключения");
-                        e.printStackTrace();
+                        myServer.getLOGGER().log(Level.SEVERE,"Ошибка посылки комманды времени подключения");
                     }
                 }
             }
@@ -169,6 +178,7 @@ public class ClientHandler {
         if (username != null) {
             if (myServer.isNicknameAlreadyBusy(username)) {
                 sendMessage(Command.authErrorCommand("Login and password are already used!"));
+                myServer.getLOGGER().log(Level.INFO,"Login and password are already used! "+username);
                 return false;
             }
             sendMessage(Command.authOkCommand(username));
